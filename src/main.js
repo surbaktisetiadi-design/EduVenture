@@ -1,10 +1,12 @@
 import { Game } from './core/Game.js';
 
-const game = new Game();
-game.init();
-game.start();
-
-// Expose untuk debugging di konsol browser (F12)
-window.__game = game;
-
-console.log('[EduVenture] Bootstrap selesai.');
+try {
+  const game = new Game();
+  game.init();
+  game.start();
+  window.__game = game; // untuk debugging di console
+  console.log('[EduVenture] Bootstrap selesai.');
+} catch (err) {
+  console.error('[EduVenture] GAGAL:', err.message);
+  console.error(err.stack);
+}
