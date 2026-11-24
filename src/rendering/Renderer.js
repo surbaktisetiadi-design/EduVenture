@@ -37,4 +37,9 @@ export class Renderer {
   render(scene) {
     this.renderer.render(scene, this.camera);
   }
+
+  // ✅ Method baru: kembalikan kamera supaya bisa diakses CameraController
+  getCamera() {
+    return this.camera;
+  }
 }
