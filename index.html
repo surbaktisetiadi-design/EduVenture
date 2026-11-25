@@ -5,29 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>EduVenture</title>
   <link rel="stylesheet" href="./style.css" />
-
-  <!-- Import Maps: muat Three.js dari CDN jsDelivr -->
   <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-    }
-  }
+  { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
   </script>
 </head>
 <body>
-  <!-- Kanvas Game 3D -->
   <canvas id="game-canvas"></canvas>
 
-  <!-- Virtual Joystick untuk HP -->
+  <!-- AREA KAMERA (Sisi Kanan Layar) -->
+  <div id="camera-area"></div>
+
+  <!-- KONTROL KIRI (Gerak) -->
   <div id="joystick-base">
     <div id="joystick-stick"></div>
   </div>
 
-  <!-- Tombol Lompat untuk HP -->
-  <div id="jump-button">Lompat</div>
+  <!-- KONTROL KANAN (Aksi) -->
+  <div id="action-buttons">
+    <button id="jump-button">Lompat</button>
+    <button id="sprint-button">Lari</button>
+    <button id="crouch-button">Jongkok</button>
+  </div>
 
-  <!-- Entry point JavaScript -->
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>
