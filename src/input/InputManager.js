@@ -1,143 +1,215 @@
 export class InputManager {
+  // State Keyboard
   #keys = new Set();
-  #joystick = { x: 0, z: 0 };
-  #isJumpPressed = false;
   
-  // Kita sisakan getCameraRotation agar tidak error, tapi nilainya selalu 0
-  #cameraRotation = { x: 0, y: 0 };
+  // State Joystick Kiri (Gerak)
+  #moveJoystick = { x: 0, z: 0 };
+  
+  // State Kamera (Rotasi)
+  #cameraRotation = { yaw: 0, pitch: 0 };
+  
+  // State Aksi
+  #isJumpPressed = false;
+  #isSprintPressed = false;
+  #isCrouchPressed = false;
 
   constructor() {
+    this.#initKeyboard();
+    this.#initTouchControls();
+    this.#initMouseControls();
+  }
+
+  // --- GETTERS ---
+  getMovementVector() { return this.#moveJoystick; }
+  getCameraRotation() { return this.#cameraRotation; }
+  isJumping() { return this.#isJumpPressed; }
+  isSprinting() { return this.#isSprintPressed; }
+  isCrouching() { return this.#isCrouchPressed; }
+
+  // --- KEYBOARD (PC) ---
+  #initKeyboard() {
     window.addEventListener('keydown', (e) => {
       this.#keys.add(e.code);
       if (e.code === 'Space') this.#isJumpPressed = true;
+      if (e.code === 'ShiftLeft') this.#isSprintPressed = true;
+      if (e.code === 'KeyC') this.#isCrouchPressed = true;
     });
     window.addEventListener('keyup', (e) => {
       this.#keys.delete(e.code);
       if (e.code === 'Space') this.#isJumpPressed = false;
+      if (e.code === 'ShiftLeft') this.#isSprintPressed = false;
+      if (e.code === 'KeyC') this.#isCrouchPressed = false;
     });
-    window.addEventListener('blur', () => this.#keys.clear());
+    window.addEventListener('blur', () => {
+      this.#keys.clear();
+      this.#isJumpPressed = false;
+      this.#isSprintPressed = false;
+      this.#isCrouchPressed = false;
+    });
+  }
 
-    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    if (!isTouchDevice) {
-      const joy = document.getElementById('joystick-base');
-      const jump = document.getElementById('jump-button');
-      if (joy) joy.style.display = 'none';
-      if (jump) jump.style.display = 'none';
+  // --- MOUSE (PC) ---
+  #initMouseControls() {
+    const canvas = document.getElementById('game-canvas');
+    
+    // Klik untuk masuk Pointer Lock
+    canvas.addEventListener('click', () => {
+      if (document.pointerLockElement !== canvas && !('ontouchstart' in window)) {
+        canvas.requestPointerLock();
+      }
+    });
+
+    // Gerakan Mouse saat Pointer Lock aktif
+    document.addEventListener('mousemove', (e) => {
+      if (document.pointerLockElement === canvas) {
+        const sens = 0.002;
+        this.#cameraRotation.yaw -= e.movementX * sens;
+        this.#cameraRotation.pitch -= e.movementY * sens;
+        this.#clampPitch();
+      }
+    });
+  }
+
+  // --- TOUCH (MOBILE) ---
+  #initTouchControls() {
+    const joyBase = document.getElementById('joystick-base');
+    const joyStick = document.getElementById('joystick-stick');
+    const rightArea = document.getElementById('camera-area');
+    const jumpBtn = document.getElementById('jump-button');
+    const sprintBtn = document.getElementById('sprint-button');
+    const crouchBtn = document.getElementById('crouch-button');
+
+    // Deteksi perangkat sentuh
+    const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (!isTouch) {
+      if(joyBase) joyBase.style.display = 'none';
+      if(rightArea) rightArea.style.display = 'none';
+      if(jumpBtn) jumpBtn.style.display = 'none';
+      if(sprintBtn) sprintBtn.style.display = 'none';
+      if(crouchBtn) crouchBtn.style.display = 'none';
+      return;
     }
 
-    this.#initJoystick();
-    this.#initJumpButton();
-  }
+    // 1. JOYSTICK KIRI
+    let joyPointerId = null;
+    const maxRadius = 50;
 
-  getMovementVector() {
-    let x = this.#joystick.x;
-    let z = this.#joystick.z;
-
-    if (this.#keys.has('KeyW') || this.#keys.has('ArrowUp'))    z -= 1;
-    if (this.#keys.has('KeyS') || this.#keys.has('ArrowDown'))  z += 1;
-    if (this.#keys.has('KeyA') || this.#keys.has('ArrowLeft'))  x -= 1;
-    if (this.#keys.has('KeyD') || this.#keys.has('ArrowRight')) x += 1;
-
-    if (x === 0 && z === 0) return null;
-
-    const len = Math.hypot(x, z);
-    return { x: x / len, z: z / len };
-  }
-
-  isJumping() {
-    return this.#isJumpPressed;
-  }
-
-  getCameraRotation() {
-    return this.#cameraRotation; // Selalu 0, kamera dikunci
-  }
-
-  #initJoystick() {
-    const base = document.getElementById('joystick-base');
-    const stick = document.getElementById('joystick-stick');
-    if (!base || !stick) return;
-
-    let joystickPointerId = null;
-    const maxRadius = 40;
-
-    const handleStart = (e) => {
+    const joyStart = (e) => {
       e.preventDefault();
       const touch = e.changedTouches ? e.changedTouches[0] : e;
-      joystickPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
+      joyPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
     };
 
-    const handleMove = (e) => {
-      if (joystickPointerId === null) return;
-      
-      let touch = e;
-      if (e.changedTouches) {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === joystickPointerId) {
-            touch = e.changedTouches[i];
-            break;
-          }
-        }
-      }
+    const joyMove = (e) => {
+      if (joyPointerId === null) return;
+      let touch = this.#getTouchById(e, joyPointerId);
       if (!touch) return;
 
-      const rect = base.getBoundingClientRect();
+      const rect = joyBase.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
       let deltaX = touch.clientX - centerX;
       let deltaY = touch.clientY - centerY;
 
-      const distance = Math.hypot(deltaX, deltaY);
-      if (distance > maxRadius) {
-        deltaX = (deltaX / distance) * maxRadius;
-        deltaY = (deltaY / distance) * maxRadius;
+      const dist = Math.hypot(deltaX, deltaY);
+      if (dist > maxRadius) {
+        deltaX = (deltaX / dist) * maxRadius;
+        deltaY = (deltaY / dist) * maxRadius;
       }
 
-      stick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-      this.#joystick.x = deltaX / maxRadius;
-      this.#joystick.z = deltaY / maxRadius; 
+      joyStick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      
+      // Normalisasi (-1 sampai 1)
+      this.#moveJoystick.x = deltaX / maxRadius;
+      this.#moveJoystick.z = deltaY / maxRadius;
     };
 
-    const handleEnd = (e) => {
-      if (e.changedTouches) {
-        let isOurTouch = false;
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === joystickPointerId) {
-            isOurTouch = true;
-            break;
-          }
-        }
-        if (!isOurTouch) return;
+    const joyEnd = (e) => {
+      if (this.#isTouchEnded(e, joyPointerId)) {
+        joyPointerId = null;
+        joyStick.style.transform = `translate(0px, 0px)`;
+        this.#moveJoystick.x = 0;
+        this.#moveJoystick.z = 0;
       }
-
-      joystickPointerId = null;
-      stick.style.transform = `translate(0px, 0px)`;
-      this.#joystick.x = 0;
-      this.#joystick.z = 0;
     };
 
-    base.addEventListener('touchstart', handleStart, { passive: false });
-    base.addEventListener('touchmove', handleMove, { passive: false });
-    base.addEventListener('touchend', handleEnd);
-    base.addEventListener('touchcancel', handleEnd);
+    joyBase.addEventListener('touchstart', joyStart, { passive: false });
+    joyBase.addEventListener('touchmove', joyMove, { passive: false });
+    joyBase.addEventListener('touchend', joyEnd);
+    joyBase.addEventListener('touchcancel', joyEnd);
 
-    base.addEventListener('mousedown', handleStart);
-    window.addEventListener('mousemove', (e) => {
-        if(joystickPointerId === 'mouse') handleMove(e);
-    });
-    window.addEventListener('mouseup', (e) => {
-        if(joystickPointerId === 'mouse') handleEnd(e);
-    });
+    // 2. AREA KAMERA (KANAN LAYAR)
+    let camPointerId = null;
+    let lastCamX = 0;
+    let lastCamY = 0;
+    const camSens = 0.005;
+
+    const camStart = (e) => {
+      const touch = e.changedTouches ? e.changedTouches[0] : e;
+      camPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
+      lastCamX = touch.clientX;
+      lastCamY = touch.clientY;
+    };
+
+    const camMove = (e) => {
+      if (camPointerId === null) return;
+      let touch = this.#getTouchById(e, camPointerId);
+      if (!touch) return;
+
+      const deltaX = touch.clientX - lastCamX;
+      const deltaY = touch.clientY - lastCamY;
+
+      this.#cameraRotation.yaw -= deltaX * camSens;
+      this.#cameraRotation.pitch -= deltaY * camSens;
+      this.#clampPitch();
+
+      lastCamX = touch.clientX;
+      lastCamY = touch.clientY;
+    };
+
+    const camEnd = (e) => {
+      if (this.#isTouchEnded(e, camPointerId)) camPointerId = null;
+    };
+
+    rightArea.addEventListener('touchstart', camStart, { passive: false });
+    rightArea.addEventListener('touchmove', camMove, { passive: false });
+    rightArea.addEventListener('touchend', camEnd);
+    rightArea.addEventListener('touchcancel', camEnd);
+
+    // 3. TOMBOL AKSI
+    const bindButton = (btn, onPress, onRelease) => {
+      if (!btn) return;
+      btn.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(); }, { passive: false });
+      btn.addEventListener('touchend', (e) => { e.preventDefault(); onRelease(); });
+      btn.addEventListener('touchcancel', onRelease);
+    };
+
+    bindButton(jumpBtn, () => this.#isJumpPressed = true, () => this.#isJumpPressed = false);
+    bindButton(sprintBtn, () => this.#isSprintPressed = true, () => this.#isSprintPressed = false);
+    bindButton(crouchBtn, () => this.#isCrouchPressed = !this.#isCrouchPressed, () => {}); // Toggle
   }
 
-  #initJumpButton() {
-    const btn = document.getElementById('jump-button');
-    if (!btn) return;
-    const handleDown = (e) => { e.preventDefault(); this.#isJumpPressed = true; };
-    const handleUp = (e) => { e.preventDefault(); this.#isJumpPressed = false; };
-    btn.addEventListener('touchstart', handleDown, { passive: false });
-    btn.addEventListener('touchend', handleUp);
-    btn.addEventListener('mousedown', handleDown);
-    btn.addEventListener('mouseup', handleUp);
+  // --- HELPER ---
+  #clampPitch() {
+    const min = -0.8;
+    const max = 1.0;
+    this.#cameraRotation.pitch = Math.max(min, Math.min(max, this.#cameraRotation.pitch));
+  }
+
+  #getTouchById(e, id) {
+    if (!e.changedTouches) return e;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === id) return e.changedTouches[i];
+    }
+    return null;
+  }
+
+  #isTouchEnded(e, id) {
+    if (!e.changedTouches) return true;
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === id) return true;
+    }
+    return false;
   }
 }
