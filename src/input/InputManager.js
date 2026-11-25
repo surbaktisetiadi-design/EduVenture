@@ -138,7 +138,8 @@ export class InputManager {
       
       // Batasi putaran ke atas/bawah agar kamera tidak jungkir balik
       this.#cameraRotation.y -= deltaY * 0.01;
-      this.#cameraRotation.y = Math.max(-0.5, Math.min(1.0, this.#cameraRotation.y));
+      // Batasi sudut pandang (Y) antara 0.2 (agak mendongak) dan 1.0 (melihat ke bawah)
+this.#cameraRotation.y = Math.max(0.2, Math.min(1.0, this.#cameraRotation.y));
 
       this.#lastPointer.x = touch.clientX;
       this.#lastPointer.y = touch.clientY;
