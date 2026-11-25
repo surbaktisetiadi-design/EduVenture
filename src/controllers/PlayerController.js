@@ -5,23 +5,31 @@ export class PlayerController {
   }
 
   update(dt) {
+    // 1. Ambil input joystick (-1 sampai 1)
     const dir = this.input.getMovementVector();
     
-    // 🎮 Logika Pergerakan Joystick (Mutlak/Seperti Minecraft)
     if (dir) {
-      // dir.x adalah -1 (kiri) sampai 1 (kanan)
-      // dir.z adalah -1 (depan/atas layar) sampai 1 (belakang/bawah layar)
-      
-      // Gerakkan berdasarkan arah absolut
-      this.player.moveBy(dir.x, dir.z, dt);
+      // 2. Ambil sudut rotasi kamera saat ini (kiri/kanan)
+      const cameraRotY = this.input.getCameraRotation().x;
 
-      // Putar badan pemain menghadap ke arah dia berjalan
-      // Kita gunakan Math.atan2 untuk mendapatkan sudut (dalam radian)
-      const targetAngle = Math.atan2(dir.x, dir.z);
+      // 3. Hitung vektor arah berdasarkan sudut kamera
+      // Jika kamera diputar, arah "Atas" pada joystick ikut berputar
+      const forwardX = -Math.sin(cameraRotY);
+      const forwardZ = -Math.cos(cameraRotY);
       
-      // Rotasi mesh pemain (hanya Y)
-      // (Opsional: tambahkan efek halus rotasi jika mau, tapi untuk kotak langsung saja)
-      this.player.mesh.rotation.y = targetAngle;
+      const rightX = Math.cos(cameraRotY);
+      const rightZ = -Math.sin(cameraRotY);
+
+      // 4. Gabungkan input joystick dengan arah kamera
+      const moveX = (rightX * dir.x) + (forwardX * -dir.z);
+      const moveZ = (rightZ * dir.x) + (forwardZ * -dir.z);
+
+      // 5. Gerakkan pemain
+      this.player.moveBy(moveX, moveZ, dt);
+
+      // 6. Putar badan pemain (kotak) menghadap ke arah gerakannya
+      const angle = Math.atan2(moveX, moveZ);
+      this.player.mesh.rotation.y = angle;
     }
 
     // Lompat
