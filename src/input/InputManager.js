@@ -2,6 +2,11 @@ export class InputManager {
   #keys = new Set();
   #joystick = { x: 0, z: 0 };
   #isJumpPressed = false;
+  
+  // Variabel untuk rotasi kamera
+  #cameraRotation = { x: 0, y: 0 };
+  #isRotating = false;
+  #lastPointer = { x: 0, y: 0 };
 
   constructor() {
     window.addEventListener('keydown', (e) => {
@@ -14,8 +19,15 @@ export class InputManager {
     });
     window.addEventListener('blur', () => this.#keys.clear());
 
+    const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    if (!isTouchDevice) {
+      document.getElementById('joystick-base').style.display = 'none';
+      document.getElementById('jump-button').style.display = 'none';
+    }
+
     this.#initJoystick();
     this.#initJumpButton();
+    this.#initCameraRotation();
   }
 
   getMovementVector() {
@@ -33,12 +45,17 @@ export class InputManager {
     return { x: x / len, z: z / len };
   }
 
-  // Fungsi untuk mengecek apakah tombol lompat ditekan
   isJumping() {
     return this.#isJumpPressed;
   }
 
+  // Fungsi baru untuk mengambil nilai rotasi kamera
+  getCameraRotation() {
+    return this.#cameraRotation;
+  }
+
   #initJoystick() {
+    // ... (SAMA SEPERTI SEBELUMNYA, TIDAK PERLU DIUBAH) ...
     const base = document.getElementById('joystick-base');
     const stick = document.getElementById('joystick-stick');
     if (!base || !stick) return;
@@ -83,23 +100,58 @@ export class InputManager {
     window.addEventListener('mouseup', handleEnd);
   }
 
-  // Inisialisasi tombol lompat di layar HP
   #initJumpButton() {
+    // ... (SAMA SEPERTI SEBELUMNYA, TIDAK PERLU DIUBAH) ...
     const btn = document.getElementById('jump-button');
     if (!btn) return;
-
-    const handleDown = (e) => {
-      e.preventDefault();
-      this.#isJumpPressed = true;
-    };
-    const handleUp = (e) => {
-      e.preventDefault();
-      this.#isJumpPressed = false;
-    };
-
+    const handleDown = (e) => { e.preventDefault(); this.#isJumpPressed = true; };
+    const handleUp = (e) => { e.preventDefault(); this.#isJumpPressed = false; };
     btn.addEventListener('touchstart', handleDown, { passive: false });
     btn.addEventListener('touchend', handleUp);
     btn.addEventListener('mousedown', handleDown);
     btn.addEventListener('mouseup', handleUp);
+  }
+
+  // 👇 FUNGSI BARU UNTUK PUTAR KAMERA 👇
+  #initCameraRotation() {
+    const canvas = document.getElementById('game-canvas');
+
+    const onStart = (e) => {
+      // Jangan putar kamera jika yang disentuh adalah joystick atau tombol lompat
+      if (e.target.id === 'joystick-base' || e.target.id === 'joystick-stick' || e.target.id === 'jump-button') return;
+      
+      this.#isRotating = true;
+      const touch = e.touches ? e.touches[0] : e;
+      this.#lastPointer.x = touch.clientX;
+      this.#lastPointer.y = touch.clientY;
+    };
+
+    const onMove = (e) => {
+      if (!this.#isRotating) return;
+      const touch = e.touches ? e.touches[0] : e;
+      
+      const deltaX = touch.clientX - this.#lastPointer.x;
+      const deltaY = touch.clientY - this.#lastPointer.y;
+
+      // Sensitivitas putaran
+      this.#cameraRotation.x -= deltaX * 0.01;
+      
+      // Batasi putaran ke atas/bawah agar kamera tidak jungkir balik
+      this.#cameraRotation.y -= deltaY * 0.01;
+      this.#cameraRotation.y = Math.max(-0.5, Math.min(1.0, this.#cameraRotation.y));
+
+      this.#lastPointer.x = touch.clientX;
+      this.#lastPointer.y = touch.clientY;
+    };
+
+    const onEnd = () => { this.#isRotating = false; };
+
+    canvas.addEventListener('touchstart', onStart, { passive: false });
+    canvas.addEventListener('touchmove', onMove, { passive: false });
+    canvas.addEventListener('touchend', onEnd);
+
+    canvas.addEventListener('mousedown', onStart);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onEnd);
   }
 }
