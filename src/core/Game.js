@@ -32,7 +32,7 @@ export class Game {
     // --- Player ---
     const playerManager = new PlayerManager(scene);
     const localPlayer = new LocalPlayer('local-1');
-    localPlayer.setPosition(0, 0);
+    localPlayer.setPosition(GameConfig.player.spawnX, GameConfig.player.spawnZ);
     playerManager.addLocalPlayer(localPlayer);
     this.services.register('playerManager', playerManager);
     this.services.register('localPlayer', localPlayer);
