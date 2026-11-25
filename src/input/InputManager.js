@@ -3,12 +3,8 @@ export class InputManager {
   #joystick = { x: 0, z: 0 };
   #isJumpPressed = false;
   
-  // Variabel untuk rotasi kamera
+  // Kita sisakan getCameraRotation agar tidak error, tapi nilainya selalu 0
   #cameraRotation = { x: 0, y: 0 };
-  
-  // ID jari/mouse yang sedang memutar kamera
-  #rotatingPointerId = null; 
-  #lastPointer = { x: 0, y: 0 };
 
   constructor() {
     window.addEventListener('keydown', (e) => {
@@ -31,7 +27,6 @@ export class InputManager {
 
     this.#initJoystick();
     this.#initJumpButton();
-    this.#initCameraRotation();
   }
 
   getMovementVector() {
@@ -54,7 +49,7 @@ export class InputManager {
   }
 
   getCameraRotation() {
-    return this.#cameraRotation;
+    return this.#cameraRotation; // Selalu 0, kamera dikunci
   }
 
   #initJoystick() {
@@ -67,7 +62,6 @@ export class InputManager {
 
     const handleStart = (e) => {
       e.preventDefault();
-      // Ambil jari pertama yang menyentuh joystick
       const touch = e.changedTouches ? e.changedTouches[0] : e;
       joystickPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
     };
@@ -75,7 +69,6 @@ export class InputManager {
     const handleMove = (e) => {
       if (joystickPointerId === null) return;
       
-      // Cari jari yang sesuai dengan ID joystick
       let touch = e;
       if (e.changedTouches) {
         for (let i = 0; i < e.changedTouches.length; i++) {
@@ -85,8 +78,6 @@ export class InputManager {
           }
         }
       }
-
-      // Jika jari tidak ditemukan di event ini, abaikan
       if (!touch) return;
 
       const rect = base.getBoundingClientRect();
@@ -108,7 +99,6 @@ export class InputManager {
     };
 
     const handleEnd = (e) => {
-      // Cek apakah jari yang dilepas adalah jari joystick
       if (e.changedTouches) {
         let isOurTouch = false;
         for (let i = 0; i < e.changedTouches.length; i++) {
@@ -126,13 +116,11 @@ export class InputManager {
       this.#joystick.z = 0;
     };
 
-    // Gunakan touch events (passive: false agar bisa preventDefault)
     base.addEventListener('touchstart', handleStart, { passive: false });
     base.addEventListener('touchmove', handleMove, { passive: false });
     base.addEventListener('touchend', handleEnd);
     base.addEventListener('touchcancel', handleEnd);
 
-    // Dukungan Mouse untuk PC
     base.addEventListener('mousedown', handleStart);
     window.addEventListener('mousemove', (e) => {
         if(joystickPointerId === 'mouse') handleMove(e);
@@ -151,74 +139,5 @@ export class InputManager {
     btn.addEventListener('touchend', handleUp);
     btn.addEventListener('mousedown', handleDown);
     btn.addEventListener('mouseup', handleUp);
-  }
-
-  #initCameraRotation() {
-    const canvas = document.getElementById('game-canvas');
-
-    const onStart = (e) => {
-      // Jika yang disentuh adalah joystick atau tombol lompat, abaikan
-      if (e.target.id === 'joystick-base' || e.target.id === 'joystick-stick' || e.target.id === 'jump-button') return;
-      
-      // Jika belum ada jari yang memutar kamera, ambil jari ini
-      if (this.#rotatingPointerId === null) {
-        const touch = e.changedTouches ? e.changedTouches[0] : e;
-        this.#rotatingPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
-        this.#lastPointer.x = touch.clientX;
-        this.#lastPointer.y = touch.clientY;
-      }
-    };
-
-    const onMove = (e) => {
-      if (this.#rotatingPointerId === null) return;
-
-      let touch = e;
-      if (e.changedTouches) {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === this.#rotatingPointerId) {
-            touch = e.changedTouches[i];
-            break;
-          }
-        }
-      }
-
-      if (!touch) return;
-
-      const deltaX = touch.clientX - this.#lastPointer.x;
-      const deltaY = touch.clientY - this.#lastPointer.y;
-
-      this.#cameraRotation.x -= deltaX * 0.005; 
-      this.#cameraRotation.y -= deltaY * 0.005;
-      this.#cameraRotation.y = Math.max(0.1, Math.min(1.2, this.#cameraRotation.y));
-
-      this.#lastPointer.x = touch.clientX;
-      this.#lastPointer.y = touch.clientY;
-    };
-
-    const onEnd = (e) => {
-      if (e.changedTouches) {
-        for (let i = 0; i < e.changedTouches.length; i++) {
-          if (e.changedTouches[i].identifier === this.#rotatingPointerId) {
-            this.#rotatingPointerId = null;
-            break;
-          }
-        }
-      } else {
-        this.#rotatingPointerId = null;
-      }
-    };
-
-    canvas.addEventListener('touchstart', onStart, { passive: false });
-    canvas.addEventListener('touchmove', onMove, { passive: false });
-    canvas.addEventListener('touchend', onEnd);
-    canvas.addEventListener('touchcancel', onEnd);
-
-    canvas.addEventListener('mousedown', onStart);
-    window.addEventListener('mousemove', (e) => {
-        if(this.#rotatingPointerId === 'mouse') onMove(e);
-    });
-    window.addEventListener('mouseup', (e) => {
-        if(this.#rotatingPointerId === 'mouse') onEnd(e);
-    });
   }
 }
