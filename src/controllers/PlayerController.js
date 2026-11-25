@@ -5,8 +5,15 @@ export class PlayerController {
   }
 
   update(dt) {
+    // Gerak
     const dir = this.input.getMovementVector();
-    if (!dir) return;
-    this.player.moveBy(dir.x, dir.z, dt);
+    if (dir) {
+      this.player.moveBy(dir.x, dir.z, dt);
+    }
+
+    // Lompat
+    if (this.input.isJumping()) {
+      this.player.jump();
+    }
   }
 }
