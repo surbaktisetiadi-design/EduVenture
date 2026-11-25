@@ -6,12 +6,32 @@ export class LocalPlayer extends Player {
   constructor(id) {
     super(id);
     this.velocity = new THREE.Vector3();
-    
-    // Variabel untuk lompat
     this.velocityY = 0;
     this.isGrounded = true;
-    this.jumpForce = 12; // Kekuatan lompatan
-    this.gravity = 30;   // Tarikan gravitasi
+    this.jumpForce = 12;
+    this.gravity = 30;
+  }
+
+  // 👇 FUNGSI CEK TABRAKAN 👇
+  checkCollision(x, z) {
+    const pRadius = GameConfig.player.radius;
+
+    // Cek tabrakan dengan semua gedung
+    for (const b of GameConfig.buildings) {
+      const halfW = b.width / 2;
+      const halfD = b.depth / 2;
+
+      // Rumus AABB (Axis-Aligned Bounding Box)
+      if (
+        x + pRadius > b.x - halfW &&
+        x - pRadius < b.x + halfW &&
+        z + pRadius > b.z - halfD &&
+        z - pRadius < b.z + halfD
+      ) {
+        return true; // Tabrakan terjadi!
+      }
+    }
+    return false;
   }
 
   moveBy(dx, dz, dt) {
@@ -21,16 +41,22 @@ export class LocalPlayer extends Player {
     let newX = this.position.x + dx * speed * dt;
     let newZ = this.position.z + dz * speed * dt;
 
+    // Cek batas pinggir lapangan
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    // Simpan posisi X dan Z, tapi Y ditentukan oleh gravitasi nanti
-    this.position.x = newX;
-    this.position.z = newZ;
+    // 👇 TERAPKAN COLLISION 👇
+    // Kita cek sumbu X dan Z secara terpisah. 
+    // Ini memungkinkan pemain untuk "meluncur" di dinding gedung, bukan macet total.
+    if (!this.checkCollision(newX, this.position.z)) {
+      this.position.x = newX;
+    }
+    if (!this.checkCollision(this.position.x, newZ)) {
+      this.position.z = newZ;
+    }
   }
 
   jump() {
-    // Hanya bisa lompat jika sedang menyentuh tanah
     if (this.isGrounded) {
       this.velocityY = this.jumpForce;
       this.isGrounded = false;
@@ -40,12 +66,10 @@ export class LocalPlayer extends Player {
   update(dt) {
     super.update(dt);
 
-    // Terapkan gravitasi
     if (!this.isGrounded) {
       this.velocityY -= this.gravity * dt;
       this.position.y += this.velocityY * dt;
 
-      // Cek jika sudah menyentuh tanah (y <= 0)
       if (this.position.y <= 0) {
         this.position.y = 0;
         this.velocityY = 0;
@@ -53,7 +77,6 @@ export class LocalPlayer extends Player {
       }
     }
 
-    // Update posisi mesh Three.js
     this.mesh.position.copy(this.position);
   }
 }
