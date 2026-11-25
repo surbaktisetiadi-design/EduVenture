@@ -39,7 +39,7 @@ export class Game {
 
     // --- Controllers ---
     const playerCtrl = new PlayerController(localPlayer, input);
-    const cameraCtrl = new CameraController(renderer.getCamera(), localPlayer);
+    const cameraCtrl = new CameraController(renderer.getCamera(), localPlayer, input);
     this.services.register('playerCtrl', playerCtrl);
     this.services.register('cameraCtrl', cameraCtrl);
 
