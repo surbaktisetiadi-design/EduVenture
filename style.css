@@ -52,3 +52,29 @@ html, body {
     display: block;
   }
 }
+/* Tombol Lompat */
+#jump-button {
+  position: absolute;
+  bottom: 40px;
+  right: 40px;
+  width: 80px;
+  height: 80px;
+  background: rgba(33, 150, 243, 0.7); /* Biru transparan */
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  color: white;
+  font-weight: bold;
+  font-size: 16px;
+  display: none; /* Sembunyikan di PC */
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  user-select: none;
+}
+
+/* Tampilkan tombol lompat hanya di HP */
+@media (pointer: coarse) {
+  #jump-button {
+    display: flex;
+  }
+}
