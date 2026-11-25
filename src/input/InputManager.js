@@ -5,7 +5,9 @@ export class InputManager {
   
   // Variabel untuk rotasi kamera
   #cameraRotation = { x: 0, y: 0 };
-  #isRotating = false;
+  
+  // ID jari/mouse yang sedang memutar kamera
+  #rotatingPointerId = null; 
   #lastPointer = { x: 0, y: 0 };
 
   constructor() {
@@ -21,8 +23,10 @@ export class InputManager {
 
     const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     if (!isTouchDevice) {
-      document.getElementById('joystick-base').style.display = 'none';
-      document.getElementById('jump-button').style.display = 'none';
+      const joy = document.getElementById('joystick-base');
+      const jump = document.getElementById('jump-button');
+      if (joy) joy.style.display = 'none';
+      if (jump) jump.style.display = 'none';
     }
 
     this.#initJoystick();
@@ -49,24 +53,42 @@ export class InputManager {
     return this.#isJumpPressed;
   }
 
-  // Fungsi baru untuk mengambil nilai rotasi kamera
   getCameraRotation() {
     return this.#cameraRotation;
   }
 
   #initJoystick() {
-    // ... (SAMA SEPERTI SEBELUMNYA, TIDAK PERLU DIUBAH) ...
     const base = document.getElementById('joystick-base');
     const stick = document.getElementById('joystick-stick');
     if (!base || !stick) return;
 
-    let isDragging = false;
+    let joystickPointerId = null;
     const maxRadius = 40;
 
-    const handleStart = (e) => { isDragging = true; e.preventDefault(); };
+    const handleStart = (e) => {
+      e.preventDefault();
+      // Ambil jari pertama yang menyentuh joystick
+      const touch = e.changedTouches ? e.changedTouches[0] : e;
+      joystickPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
+    };
+
     const handleMove = (e) => {
-      if (!isDragging) return;
-      const touch = e.touches ? e.touches[0] : e;
+      if (joystickPointerId === null) return;
+      
+      // Cari jari yang sesuai dengan ID joystick
+      let touch = e;
+      if (e.changedTouches) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === joystickPointerId) {
+            touch = e.changedTouches[i];
+            break;
+          }
+        }
+      }
+
+      // Jika jari tidak ditemukan di event ini, abaikan
+      if (!touch) return;
+
       const rect = base.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
@@ -85,23 +107,42 @@ export class InputManager {
       this.#joystick.z = deltaY / maxRadius; 
     };
 
-    const handleEnd = () => {
-      isDragging = false;
+    const handleEnd = (e) => {
+      // Cek apakah jari yang dilepas adalah jari joystick
+      if (e.changedTouches) {
+        let isOurTouch = false;
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === joystickPointerId) {
+            isOurTouch = true;
+            break;
+          }
+        }
+        if (!isOurTouch) return;
+      }
+
+      joystickPointerId = null;
       stick.style.transform = `translate(0px, 0px)`;
       this.#joystick.x = 0;
       this.#joystick.z = 0;
     };
 
+    // Gunakan touch events (passive: false agar bisa preventDefault)
     base.addEventListener('touchstart', handleStart, { passive: false });
     base.addEventListener('touchmove', handleMove, { passive: false });
     base.addEventListener('touchend', handleEnd);
+    base.addEventListener('touchcancel', handleEnd);
+
+    // Dukungan Mouse untuk PC
     base.addEventListener('mousedown', handleStart);
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('mousemove', (e) => {
+        if(joystickPointerId === 'mouse') handleMove(e);
+    });
+    window.addEventListener('mouseup', (e) => {
+        if(joystickPointerId === 'mouse') handleEnd(e);
+    });
   }
 
   #initJumpButton() {
-    // ... (SAMA SEPERTI SEBELUMNYA, TIDAK PERLU DIUBAH) ...
     const btn = document.getElementById('jump-button');
     if (!btn) return;
     const handleDown = (e) => { e.preventDefault(); this.#isJumpPressed = true; };
@@ -112,47 +153,72 @@ export class InputManager {
     btn.addEventListener('mouseup', handleUp);
   }
 
-  // 👇 FUNGSI BARU UNTUK PUTAR KAMERA 👇
   #initCameraRotation() {
     const canvas = document.getElementById('game-canvas');
 
     const onStart = (e) => {
-      // Jangan putar kamera jika yang disentuh adalah joystick atau tombol lompat
+      // Jika yang disentuh adalah joystick atau tombol lompat, abaikan
       if (e.target.id === 'joystick-base' || e.target.id === 'joystick-stick' || e.target.id === 'jump-button') return;
       
-      this.#isRotating = true;
-      const touch = e.touches ? e.touches[0] : e;
-      this.#lastPointer.x = touch.clientX;
-      this.#lastPointer.y = touch.clientY;
+      // Jika belum ada jari yang memutar kamera, ambil jari ini
+      if (this.#rotatingPointerId === null) {
+        const touch = e.changedTouches ? e.changedTouches[0] : e;
+        this.#rotatingPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
+        this.#lastPointer.x = touch.clientX;
+        this.#lastPointer.y = touch.clientY;
+      }
     };
 
     const onMove = (e) => {
-      if (!this.#isRotating) return;
-      const touch = e.touches ? e.touches[0] : e;
-      
+      if (this.#rotatingPointerId === null) return;
+
+      let touch = e;
+      if (e.changedTouches) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === this.#rotatingPointerId) {
+            touch = e.changedTouches[i];
+            break;
+          }
+        }
+      }
+
+      if (!touch) return;
+
       const deltaX = touch.clientX - this.#lastPointer.x;
       const deltaY = touch.clientY - this.#lastPointer.y;
 
-      // Sensitivitas putaran
-      this.#cameraRotation.x -= deltaX * 0.01;
-      
-      // Batasi putaran ke atas/bawah agar kamera tidak jungkir balik
-      this.#cameraRotation.y -= deltaY * 0.01;
-      // Batasi sudut pandang (Y) antara 0.2 (agak mendongak) dan 1.0 (melihat ke bawah)
-this.#cameraRotation.y = Math.max(0.2, Math.min(1.0, this.#cameraRotation.y));
+      this.#cameraRotation.x -= deltaX * 0.005; 
+      this.#cameraRotation.y -= deltaY * 0.005;
+      this.#cameraRotation.y = Math.max(0.1, Math.min(1.2, this.#cameraRotation.y));
 
       this.#lastPointer.x = touch.clientX;
       this.#lastPointer.y = touch.clientY;
     };
 
-    const onEnd = () => { this.#isRotating = false; };
+    const onEnd = (e) => {
+      if (e.changedTouches) {
+        for (let i = 0; i < e.changedTouches.length; i++) {
+          if (e.changedTouches[i].identifier === this.#rotatingPointerId) {
+            this.#rotatingPointerId = null;
+            break;
+          }
+        }
+      } else {
+        this.#rotatingPointerId = null;
+      }
+    };
 
     canvas.addEventListener('touchstart', onStart, { passive: false });
     canvas.addEventListener('touchmove', onMove, { passive: false });
     canvas.addEventListener('touchend', onEnd);
+    canvas.addEventListener('touchcancel', onEnd);
 
     canvas.addEventListener('mousedown', onStart);
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onEnd);
+    window.addEventListener('mousemove', (e) => {
+        if(this.#rotatingPointerId === 'mouse') onMove(e);
+    });
+    window.addEventListener('mouseup', (e) => {
+        if(this.#rotatingPointerId === 'mouse') onEnd(e);
+    });
   }
 }
