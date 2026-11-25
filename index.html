@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>EduVenture</title>
   <link rel="stylesheet" href="./style.css" />
 
@@ -15,17 +15,19 @@
   }
   </script>
 </head>
-  <body>
+<body>
+  <!-- Kanvas Game 3D -->
   <canvas id="game-canvas"></canvas>
 
   <!-- Virtual Joystick untuk HP -->
   <div id="joystick-base">
     <div id="joystick-stick"></div>
   </div>
-    <!-- Tombol Lompat -->
+
+  <!-- Tombol Lompat untuk HP -->
   <div id="jump-button">Lompat</div>
 
+  <!-- Entry point JavaScript -->
   <script type="module" src="./src/main.js"></script>
-</body>
 </body>
 </html>
