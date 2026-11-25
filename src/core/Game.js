@@ -8,6 +8,7 @@ import { LocalPlayer } from '../entities/LocalPlayer.js';
 import { PlayerManager } from '../managers/PlayerManager.js';
 import { PlayerController } from '../controllers/PlayerController.js';
 import { CameraController } from '../controllers/CameraController.js';
+import { GameConfig } from '../config/gameConfig.js';
 
 export class Game {
   constructor() {
