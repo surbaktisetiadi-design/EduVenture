@@ -19,7 +19,7 @@ export const GameConfig = {
   buildings: [
     {
       name: "Gedung Matematika",
-      x: 0, z: -10,      // 👈 Geser gedung ke belakang (Z: -10)
+      x: 0, z: -20,      // 👈 Geser gedung ke belakang (Z: -10)
       width: 16,
       depth: 16,
       height: 8,
