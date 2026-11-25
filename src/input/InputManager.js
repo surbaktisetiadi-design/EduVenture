@@ -192,7 +192,10 @@ export class InputManager {
 
   // --- HELPER ---
   #clampPitch() {
-    const min = -0.8;
+    // Ubah -0.8 menjadi -0.2 atau -0.1
+    // Semakin kecil angkanya (negatif), semakin bebas kamera menunduk ke bawah.
+    // -0.1 artinya kamera hanya boleh menunduk sedikit ke bawah.
+    const min = -0.1; 
     const max = 1.0;
     this.#cameraRotation.pitch = Math.max(min, Math.min(max, this.#cameraRotation.pitch));
   }
