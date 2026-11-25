@@ -8,12 +8,11 @@ export class CameraController {
     this.target = target;
     this.input = inputManager;
     
-    // Posisi kamera saat ini (untuk smooth damp)
-    this.currentPos = new THREE.Vector3(0, 0, 0);
-    
-    // Sudut rotasi saat ini (smooth)
     this.currentYaw = 0;
     this.currentPitch = 0;
+    
+    // Batas minimal kamera menyentuh tanah
+    this.minCameraHeight = 1.5; 
   }
 
   update(dt) {
@@ -21,45 +20,44 @@ export class CameraController {
     const rot = this.input.getCameraRotation();
     const playerPos = this.target.position;
 
-    // 1. Smooth Rotasi Kamera
+    // 1. Smooth Rotasi
     this.currentYaw = MathUtils.damp(this.currentYaw, rot.yaw, camConfig.lerpSpeed, dt);
     this.currentPitch = MathUtils.damp(this.currentPitch, rot.pitch, camConfig.lerpSpeed, dt);
 
-    // 2. Hitung Offset Posisi Kamera (Berdasarkan Yaw & Pitch)
-    // Offset Dasar (di belakang pemain)
+    // 2. Hitung Offset (Jarak kamera dari pemain)
     const baseDist = camConfig.distance;
     const hOffset = camConfig.heightOffset;
     const sOffset = camConfig.shoulderOffset;
 
-    // Trigonometri untuk 360 derajat
     const cosPitch = Math.cos(this.currentPitch);
     const sinPitch = Math.sin(this.currentPitch);
-    const cosYaw = Math.cos(this.currentYaw);
-    const sinYaw = Math.sin(this.currentYaw);
-
-    // Posisi X dan Z (mengelilingi pemain)
+    
     const offsetX = Math.sin(this.currentYaw) * baseDist * cosPitch;
     const offsetZ = Math.cos(this.currentYaw) * baseDist * cosPitch;
-    
-    // Posisi Y (naik/turun berdasarkan pitch)
-    const offsetY = hOffset + (Math.sin(this.currentPitch) * baseDist);
+    const offsetY = hOffset + (sinPitch * baseDist);
 
-    // Geser ke kanan bahu (Shoulder Offset) berdasarkan Yaw
     const shoulderX = Math.cos(this.currentYaw) * sOffset;
     const shoulderZ = -Math.sin(this.currentYaw) * sOffset;
 
-    const desiredX = playerPos.x + offsetX + shoulderX;
-    const desiredY = playerPos.y + offsetY;
-    const desiredZ = playerPos.z + offsetZ + shoulderZ;
+    // Posisi target kamera
+    let desiredX = playerPos.x + offsetX + shoulderX;
+    let desiredY = playerPos.y + offsetY;
+    let desiredZ = playerPos.z + offsetZ + shoulderZ;
 
-    // 3. Smooth Posisi
+    // 👇 KUNCI PERBAIKAN: Cegah kamera tembus tanah 👇
+    // Jika Y kamera kurang dari batas minimal, paksa naik ke batas minimal.
+    if (desiredY < this.minCameraHeight) {
+      desiredY = this.minCameraHeight;
+    }
+
+    // 3. Smooth Posisi Kamera
     this.camera.position.x = MathUtils.damp(this.camera.position.x, desiredX, camConfig.lerpSpeed, dt);
     this.camera.position.y = MathUtils.damp(this.camera.position.y, desiredY, camConfig.lerpSpeed, dt);
     this.camera.position.z = MathUtils.damp(this.camera.position.z, desiredZ, camConfig.lerpSpeed, dt);
 
-    // 4. Titik Pandang (Look At)
-    // Kamera melihat sedikit ke atas dari posisi pemain
-    const lookAtX = playerPos.x + shoulderX; // Ikut bergeser ke kanan bahu
+    // 4. Titik Pandang
+    // Saat kamera mentok di tanah, lookAt tetap ke arah dada pemain
+    const lookAtX = playerPos.x + shoulderX;
     const lookAtY = playerPos.y + camConfig.lookAtHeight;
     const lookAtZ = playerPos.z + shoulderZ;
 
