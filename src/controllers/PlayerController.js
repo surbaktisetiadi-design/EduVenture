@@ -5,30 +5,15 @@ export class PlayerController {
   }
 
   update(dt) {
-    // 1. Ambil input joystick (-1 sampai 1)
+    // 1. Ambil input joystick (X dan Z)
     const dir = this.input.getMovementVector();
     
     if (dir) {
-      // 2. Ambil sudut rotasi kamera saat ini (kiri/kanan)
-      const cameraRotY = this.input.getCameraRotation().x;
+      // 2. Gerakkan pemain secara mutlak (tanpa pengaruh kamera)
+      this.player.moveBy(dir.x, dir.z, dt);
 
-      // 3. Hitung vektor arah berdasarkan sudut kamera
-      // Jika kamera diputar, arah "Atas" pada joystick ikut berputar
-      const forwardX = -Math.sin(cameraRotY);
-      const forwardZ = -Math.cos(cameraRotY);
-      
-      const rightX = Math.cos(cameraRotY);
-      const rightZ = -Math.sin(cameraRotY);
-
-      // 4. Gabungkan input joystick dengan arah kamera
-      const moveX = (rightX * dir.x) + (forwardX * -dir.z);
-      const moveZ = (rightZ * dir.x) + (forwardZ * -dir.z);
-
-      // 5. Gerakkan pemain
-      this.player.moveBy(moveX, moveZ, dt);
-
-      // 6. Putar badan pemain (kotak) menghadap ke arah gerakannya
-      const angle = Math.atan2(moveX, moveZ);
+      // 3. Putar badan pemain menghadap ke arah gerakannya
+      const angle = Math.atan2(dir.x, dir.z);
       this.player.mesh.rotation.y = angle;
     }
 
