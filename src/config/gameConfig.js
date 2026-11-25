@@ -18,7 +18,7 @@ export const GameConfig = {
   buildings: [
     {
       name: "Gedung Matematika",
-      x: 0, z: -20,      // Posisi tengah gedung
+      x: 5, z: -5,      // Posisi tengah gedung
       width: 16,         // Lebar (sumbu X)
       depth: 16,         // Panjang (sumbu Z)
       height: 8,         // Tinggi
