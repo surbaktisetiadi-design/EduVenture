@@ -12,33 +12,36 @@ export class Player {
   #buildMesh() {
     const group = new THREE.Group();
 
-    // Badan: kapsul
-    const bodyGeo = new THREE.CapsuleGeometry(
-      GameConfig.player.radius,
-      GameConfig.player.height - GameConfig.player.radius * 2,
-      4,
-      8
-    );
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: this.color,
-      roughness: 0.6,
-      metalness: 0.1,
-    });
+    // Ukuran kotak (Minecraft style: kotak memanjang ke atas)
+    const w = 0.8; // lebar
+    const h = 1.2; // tinggi badan
+    const d = 0.6; // tebal
+
+    // Badan
+    const bodyGeo = new THREE.BoxGeometry(w, h, d);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: this.color, roughness: 0.8 });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.position.y = GameConfig.player.height / 2;
+    body.position.y = h / 2;
     body.castShadow = true;
     group.add(body);
 
-    // Kepala: bola
-    const headGeo = new THREE.SphereGeometry(GameConfig.player.radius * 0.7, 16, 16);
-    const headMat = new THREE.MeshStandardMaterial({
-      color: 0xffe0bd,
-      roughness: 0.8,
-    });
+    // Kepala
+    const headSize = 0.6;
+    const headGeo = new THREE.BoxGeometry(headSize, headSize, headSize);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffe0bd, roughness: 0.8 });
     const head = new THREE.Mesh(headGeo, headMat);
-    head.position.y = GameConfig.player.height + GameConfig.player.radius * 0.3;
+    head.position.y = h + (headSize / 2);
     head.castShadow = true;
     group.add(head);
+
+    // Penanda Depan (Wajah/Mata) agar tahu arah hadap
+    // Kita buat kotak tipis berwarna gelap di bagian depan
+    const faceGeo = new THREE.BoxGeometry(0.5, 0.15, 0.05);
+    const faceMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+    const face = new THREE.Mesh(faceGeo, faceMat);
+    // Posisikan di depan kepala (sumbu Z positif)
+    face.position.set(0, h + (headSize / 2), (headSize / 2) + 0.01); 
+    group.add(face);
 
     return group;
   }
