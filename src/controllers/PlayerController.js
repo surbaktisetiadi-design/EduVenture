@@ -12,13 +12,23 @@ export class PlayerController {
     const dir = this.input.getMovementVector();
     const rot = this.input.getCameraRotation();
     
+    // --- LOGIKA KECEPATAN (Lari / Jongkok / Jalan) ---
     let currentSpeed = GameConfig.player.speed;
-    if (this.input.isSprinting() && dir) currentSpeed = GameConfig.player.sprintSpeed;
-    if (this.input.isCrouching() && dir) currentSpeed = GameConfig.player.crouchSpeed;
+    
+    // Jika jongkok, kecepatan melambat
+    if (this.input.isCrouching()) {
+      currentSpeed = GameConfig.player.crouchSpeed;
+      this.player.setCrouching(true);
+    } else {
+      this.player.setCrouching(false);
+      
+      // Jika lari (dan tidak jongkok), kecepatan bertambah
+      if (this.input.isSprinting()) {
+        currentSpeed = GameConfig.player.sprintSpeed;
+      }
+    }
 
-    // Default: tidak bergerak
-    let isActuallyMoving = false;
-
+    // --- PERGERAKAN ---
     if (dir) {
       const forwardX = -Math.sin(rot.yaw);
       const forwardZ = -Math.cos(rot.yaw);
@@ -36,27 +46,22 @@ export class PlayerController {
 
         this.player.moveBy(normalizedX, normalizedZ, dt, currentSpeed);
         this.targetRotation = Math.atan2(normalizedX, normalizedZ);
-        
-        isActuallyMoving = true; // Tandai bahwa dia sedang bergerak
       }
     }
 
-    // Beritahu karakter untuk memainkan animasi berjalan
-    this.player.setMoving(isActuallyMoving);
-
-    // Smooth Rotation
+    // --- ROTASI HALUS ---
     const currentRot = this.player.mesh.rotation.y;
     let diff = this.targetRotation - currentRot;
     while (diff > Math.PI) diff -= Math.PI * 2;
     while (diff < -Math.PI) diff += Math.PI * 2;
     this.player.mesh.rotation.y += diff * 10 * dt;
 
-    // Lompat
+    // --- LOMPAT ---
     if (this.input.isJumping()) {
       this.player.jump();
     }
 
-    // Update posisi mesh
+    // Update posisi visual
     this.player.mesh.position.copy(this.player.position);
   }
 }
