@@ -217,7 +217,7 @@ export class HouseModel extends THREE.Group {
     const m = this.mats;
 
     // --- A. ALAS TAPAK ---
-    a(houseRoot, 13.6, 0.22, 11.8, m.plinthBase, 0.5, 0.11, 0.5, 0, 0, 0, false, true);
+    a(houseRoot, 13.6, 0.22, 11.8, m.plinthBase, 0.5, 0.25, 0.5, 0, 0, 0, false, true);
     a(houseRoot, 8.2, 0.42, 9.2, m.stone, -1.5, 0.41, 0);
     a(houseRoot, 4.4, 0.38, 1.6, m.floorTile, -1.5, 0.39, 5.2);
     a(houseRoot, 2.5, 0.13, 0.34, m.stone, -1.5, 0.265, 6.62);
