@@ -1,17 +1,11 @@
 export class InputManager {
-  // State Keyboard
   #keys = new Set();
-  
-  // State Joystick Kiri (Gerak)
   #moveJoystick = { x: 0, z: 0 };
-  
-  // State Kamera (Rotasi)
   #cameraRotation = { yaw: 0, pitch: 0 };
   
-  // State Aksi
   #isJumpPressed = false;
   #isSprintPressed = false;
-  #isCrouchPressed = false;
+  #isCrouchPressed = false; // Ini akan jadi Toggle
 
   constructor() {
     this.#initKeyboard();
@@ -19,58 +13,43 @@ export class InputManager {
     this.#initMouseControls();
   }
 
-  // --- GETTERS ---
   getMovementVector() { return this.#moveJoystick; }
   getCameraRotation() { return this.#cameraRotation; }
   isJumping() { return this.#isJumpPressed; }
   isSprinting() { return this.#isSprintPressed; }
   isCrouching() { return this.#isCrouchPressed; }
 
-  // --- KEYBOARD (PC) ---
   #initKeyboard() {
     window.addEventListener('keydown', (e) => {
       this.#keys.add(e.code);
       if (e.code === 'Space') this.#isJumpPressed = true;
       if (e.code === 'ShiftLeft') this.#isSprintPressed = true;
-      if (e.code === 'KeyC') this.#isCrouchPressed = true;
+      if (e.code === 'KeyC') this.#isCrouchPressed = !this.#isCrouchPressed; // Toggle
     });
     window.addEventListener('keyup', (e) => {
       this.#keys.delete(e.code);
       if (e.code === 'Space') this.#isJumpPressed = false;
       if (e.code === 'ShiftLeft') this.#isSprintPressed = false;
-      if (e.code === 'KeyC') this.#isCrouchPressed = false;
-    });
-    window.addEventListener('blur', () => {
-      this.#keys.clear();
-      this.#isJumpPressed = false;
-      this.#isSprintPressed = false;
-      this.#isCrouchPressed = false;
     });
   }
 
-  // --- MOUSE (PC) ---
   #initMouseControls() {
     const canvas = document.getElementById('game-canvas');
-    
-    // Klik untuk masuk Pointer Lock
     canvas.addEventListener('click', () => {
       if (document.pointerLockElement !== canvas && !('ontouchstart' in window)) {
         canvas.requestPointerLock();
       }
     });
 
-    // Gerakan Mouse saat Pointer Lock aktif
     document.addEventListener('mousemove', (e) => {
       if (document.pointerLockElement === canvas) {
-        const sens = 0.002;
-        this.#cameraRotation.yaw -= e.movementX * sens;
-        this.#cameraRotation.pitch -= e.movementY * sens;
+        this.#cameraRotation.yaw -= e.movementX * 0.002;
+        this.#cameraRotation.pitch -= e.movementY * 0.002;
         this.#clampPitch();
       }
     });
   }
 
-  // --- TOUCH (MOBILE) ---
   #initTouchControls() {
     const joyBase = document.getElementById('joystick-base');
     const joyStick = document.getElementById('joystick-stick');
@@ -79,140 +58,72 @@ export class InputManager {
     const sprintBtn = document.getElementById('sprint-button');
     const crouchBtn = document.getElementById('crouch-button');
 
-    // Deteksi perangkat sentuh
     const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
     if (!isTouch) {
-      if(joyBase) joyBase.style.display = 'none';
-      if(rightArea) rightArea.style.display = 'none';
-      if(jumpBtn) jumpBtn.style.display = 'none';
-      if(sprintBtn) sprintBtn.style.display = 'none';
-      if(crouchBtn) crouchBtn.style.display = 'none';
+      [joyBase, rightArea, jumpBtn, sprintBtn, crouchBtn].forEach(el => { if(el) el.style.display = 'none'; });
       return;
     }
 
-    // 1. JOYSTICK KIRI
-    let joyPointerId = null;
-    const maxRadius = 50;
-
-    const joyStart = (e) => {
-      e.preventDefault();
-      const touch = e.changedTouches ? e.changedTouches[0] : e;
-      joyPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
-    };
-
-    const joyMove = (e) => {
-      if (joyPointerId === null) return;
-      let touch = this.#getTouchById(e, joyPointerId);
-      if (!touch) return;
-
-      const rect = joyBase.getBoundingClientRect();
-      const centerX = rect.left + rect.width / 2;
-      const centerY = rect.top + rect.height / 2;
-
-      let deltaX = touch.clientX - centerX;
-      let deltaY = touch.clientY - centerY;
-
-      const dist = Math.hypot(deltaX, deltaY);
-      if (dist > maxRadius) {
-        deltaX = (deltaX / dist) * maxRadius;
-        deltaY = (deltaY / dist) * maxRadius;
+    // --- JOYSTICK KIRI ---
+    let joyId = null;
+    const maxR = 50;
+    joyBase.addEventListener('touchstart', (e) => { e.preventDefault(); joyId = e.changedTouches[0].identifier; }, { passive: false });
+    joyBase.addEventListener('touchmove', (e) => {
+      if (joyId === null) return;
+      for (let t of e.changedTouches) {
+        if (t.identifier === joyId) {
+          const rect = joyBase.getBoundingClientRect();
+          let dx = t.clientX - (rect.left + rect.width/2);
+          let dy = t.clientY - (rect.top + rect.height/2);
+          const dist = Math.hypot(dx, dy);
+          if (dist > maxR) { dx = (dx/dist)*maxR; dy = (dy/dist)*maxR; }
+          joyStick.style.transform = `translate(${dx}px, ${dy}px)`;
+          this.#moveJoystick.x = dx / maxR;
+          this.#moveJoystick.z = dy / maxR;
+        }
       }
-
-      joyStick.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-      
-      // Normalisasi (-1 sampai 1)
-      this.#moveJoystick.x = deltaX / maxRadius;
-      this.#moveJoystick.z = deltaY / maxRadius;
-    };
-
+    }, { passive: false });
     const joyEnd = (e) => {
-      if (this.#isTouchEnded(e, joyPointerId)) {
-        joyPointerId = null;
-        joyStick.style.transform = `translate(0px, 0px)`;
-        this.#moveJoystick.x = 0;
-        this.#moveJoystick.z = 0;
+      for (let t of e.changedTouches) {
+        if (t.identifier === joyId) { joyId = null; joyStick.style.transform = `translate(0,0)`; this.#moveJoystick = {x:0,z:0}; }
       }
     };
-
-    joyBase.addEventListener('touchstart', joyStart, { passive: false });
-    joyBase.addEventListener('touchmove', joyMove, { passive: false });
     joyBase.addEventListener('touchend', joyEnd);
     joyBase.addEventListener('touchcancel', joyEnd);
 
-    // 2. AREA KAMERA (KANAN LAYAR)
-    let camPointerId = null;
-    let lastCamX = 0;
-    let lastCamY = 0;
-    const camSens = 0.005;
-
-    const camStart = (e) => {
-      const touch = e.changedTouches ? e.changedTouches[0] : e;
-      camPointerId = touch.identifier !== undefined ? touch.identifier : 'mouse';
-      lastCamX = touch.clientX;
-      lastCamY = touch.clientY;
-    };
-
-    const camMove = (e) => {
-      if (camPointerId === null) return;
-      let touch = this.#getTouchById(e, camPointerId);
-      if (!touch) return;
-
-      const deltaX = touch.clientX - lastCamX;
-      const deltaY = touch.clientY - lastCamY;
-
-      this.#cameraRotation.yaw -= deltaX * camSens;
-      this.#cameraRotation.pitch -= deltaY * camSens;
-      this.#clampPitch();
-
-      lastCamX = touch.clientX;
-      lastCamY = touch.clientY;
-    };
-
-    const camEnd = (e) => {
-      if (this.#isTouchEnded(e, camPointerId)) camPointerId = null;
-    };
-
-    rightArea.addEventListener('touchstart', camStart, { passive: false });
-    rightArea.addEventListener('touchmove', camMove, { passive: false });
+    // --- KAMERA AREA KANAN ---
+    let camId = null, lastX = 0, lastY = 0;
+    rightArea.addEventListener('touchstart', (e) => { camId = e.changedTouches[0].identifier; lastX = e.changedTouches[0].clientX; lastY = e.changedTouches[0].clientY; }, { passive: false });
+    rightArea.addEventListener('touchmove', (e) => {
+      if (camId === null) return;
+      for (let t of e.changedTouches) {
+        if (t.identifier === camId) {
+          this.#cameraRotation.yaw -= (t.clientX - lastX) * 0.005;
+          this.#cameraRotation.pitch -= (t.clientY - lastY) * 0.005;
+          this.#clampPitch();
+          lastX = t.clientX; lastY = t.clientY;
+        }
+      }
+    }, { passive: false });
+    const camEnd = (e) => { for (let t of e.changedTouches) { if (t.identifier === camId) camId = null; } };
     rightArea.addEventListener('touchend', camEnd);
     rightArea.addEventListener('touchcancel', camEnd);
 
-    // 3. TOMBOL AKSI
-    const bindButton = (btn, onPress, onRelease) => {
-      if (!btn) return;
-      btn.addEventListener('touchstart', (e) => { e.preventDefault(); onPress(); }, { passive: false });
-      btn.addEventListener('touchend', (e) => { e.preventDefault(); onRelease(); });
-      btn.addEventListener('touchcancel', onRelease);
-    };
+    // --- TOMBOL AKSI ---
+    jumpBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.#isJumpPressed = true; }, { passive: false });
+    jumpBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.#isJumpPressed = false; });
+    
+    sprintBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.#isSprintPressed = true; }, { passive: false });
+    sprintBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.#isSprintPressed = false; });
 
-    bindButton(jumpBtn, () => this.#isJumpPressed = true, () => this.#isJumpPressed = false);
-    bindButton(sprintBtn, () => this.#isSprintPressed = true, () => this.#isSprintPressed = false);
-    bindButton(crouchBtn, () => this.#isCrouchPressed = !this.#isCrouchPressed, () => {}); // Toggle
+    crouchBtn.addEventListener('touchstart', (e) => { 
+      e.preventDefault(); 
+      this.#isCrouchPressed = !this.#isCrouchPressed; // Toggle
+      crouchBtn.style.background = this.#isCrouchPressed ? 'rgba(255,100,100,0.8)' : 'rgba(33,150,243,0.6)';
+    }, { passive: false });
   }
 
-  // --- HELPER ---
   #clampPitch() {
-    // Ubah -0.8 menjadi -0.2 atau -0.1
-    // Semakin kecil angkanya (negatif), semakin bebas kamera menunduk ke bawah.
-    // -0.1 artinya kamera hanya boleh menunduk sedikit ke bawah.
-    const min = -0.1; 
-    const max = 1.0;
-    this.#cameraRotation.pitch = Math.max(min, Math.min(max, this.#cameraRotation.pitch));
-  }
-
-  #getTouchById(e, id) {
-    if (!e.changedTouches) return e;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === id) return e.changedTouches[i];
-    }
-    return null;
-  }
-
-  #isTouchEnded(e, id) {
-    if (!e.changedTouches) return true;
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      if (e.changedTouches[i].identifier === id) return true;
-    }
-    return false;
+    this.#cameraRotation.pitch = Math.max(-0.1, Math.min(1.0, this.#cameraRotation.pitch));
   }
 }
