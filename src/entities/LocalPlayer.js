@@ -10,6 +10,10 @@ export class LocalPlayer extends Player {
     this.isGrounded = true;
     this.jumpForce = 12;
     this.gravity = 30;
+    
+    // Variabel Jongkok
+    this.isCrouching = false;
+    this.currentHeightScale = 1.0; // Skala tinggi (1 = normal, 0.6 = jongkok)
   }
 
   checkCollision(x, z) {
@@ -29,19 +33,14 @@ export class LocalPlayer extends Player {
     return false;
   }
 
-  // Ditambahkan parameter speed
   moveBy(dx, dz, dt, speed) {
     const boundary = GameConfig.world.boundary;
-
-    // Hitung perpindahan akhir
     let newX = this.position.x + dx * speed * dt;
     let newZ = this.position.z + dz * speed * dt;
 
-    // Batas dunia
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    // Cek Tabrakan
     if (!this.checkCollision(newX, this.position.z)) {
       this.position.x = newX;
     }
@@ -51,15 +50,22 @@ export class LocalPlayer extends Player {
   }
 
   jump() {
-    if (this.isGrounded) {
+    // Tidak bisa lompat jika sedang jongkok
+    if (this.isGrounded && !this.isCrouching) {
       this.velocityY = this.jumpForce;
       this.isGrounded = false;
     }
   }
 
+  setCrouching(crouch) {
+    this.isCrouching = crouch;
+  }
+
   update(dt) {
+    // Panggil animasi dasar (berjalan, kedip)
     super.update(dt);
 
+    // --- 1. Fisika Lompat & Gravitasi ---
     if (!this.isGrounded) {
       this.velocityY -= this.gravity * dt;
       this.position.y += this.velocityY * dt;
@@ -71,6 +77,16 @@ export class LocalPlayer extends Player {
       }
     }
 
+    // --- 2. Efek Visual Jongkok (Skala Y) ---
+    const targetScale = this.isCrouching ? 0.6 : 1.0;
+    // Animasi halus (smooth) saat jongkok/berdiri
+    this.currentHeightScale = THREE.MathUtils.lerp(this.currentHeightScale, targetScale, 15 * dt);
+    
+    // Terapkan skala ke mesh. 
+    // Karena posisi mesh berada di kaki (Y=0), kita bisa langsung mengubah scale.y
+    this.mesh.scale.y = this.currentHeightScale;
+
+    // Update posisi mesh
     this.mesh.position.copy(this.position);
   }
 }
