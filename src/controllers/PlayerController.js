@@ -12,36 +12,37 @@ export class PlayerController {
     const dir = this.input.getMovementVector();
     const rot = this.input.getCameraRotation();
     
-    // Tentukan kecepatan
     let currentSpeed = GameConfig.player.speed;
     if (this.input.isSprinting() && dir) currentSpeed = GameConfig.player.sprintSpeed;
     if (this.input.isCrouching() && dir) currentSpeed = GameConfig.player.crouchSpeed;
 
+    // Default: tidak bergerak
+    let isActuallyMoving = false;
+
     if (dir) {
-      // Arah berdasarkan kamera (Camera-Relative)
       const forwardX = -Math.sin(rot.yaw);
       const forwardZ = -Math.cos(rot.yaw);
       const rightX = Math.cos(rot.yaw);
       const rightZ = -Math.sin(rot.yaw);
 
-      // Gabungkan
       const moveX = (rightX * dir.x) + (forwardX * -dir.z);
       const moveZ = (rightZ * dir.x) + (forwardZ * -dir.z);
 
       const len = Math.hypot(moveX, moveZ);
+      
       if (len > 0) {
-        // Normalisasi arah (0 sampai 1)
         const normalizedX = moveX / len;
         const normalizedZ = moveZ / len;
 
-        // Panggil moveBy dengan arah yang sudah dinormalisasi dan dt
-        // (LocalPlayer akan mengalikannya dengan kecepatan)
         this.player.moveBy(normalizedX, normalizedZ, dt, currentSpeed);
-
-        // Rotasi target
         this.targetRotation = Math.atan2(normalizedX, normalizedZ);
+        
+        isActuallyMoving = true; // Tandai bahwa dia sedang bergerak
       }
     }
+
+    // Beritahu karakter untuk memainkan animasi berjalan
+    this.player.setMoving(isActuallyMoving);
 
     // Smooth Rotation
     const currentRot = this.player.mesh.rotation.y;
@@ -55,7 +56,7 @@ export class PlayerController {
       this.player.jump();
     }
 
-    // Update visual mesh
+    // Update posisi mesh
     this.player.mesh.position.copy(this.player.position);
   }
 }
