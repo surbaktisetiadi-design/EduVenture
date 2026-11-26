@@ -10,10 +10,6 @@ export class LocalPlayer extends Player {
     this.isGrounded = true;
     this.jumpForce = 12;
     this.gravity = 30;
-    
-    // Variabel Jongkok
-    this.isCrouching = false;
-    this.currentHeightScale = 1.0; // Skala tinggi (1 = normal, 0.6 = jongkok)
   }
 
   checkCollision(x, z) {
@@ -22,13 +18,9 @@ export class LocalPlayer extends Player {
       const halfW = b.width / 2;
       const halfD = b.depth / 2;
       if (
-        x + pRadius > b.x - halfW &&
-        x - pRadius < b.x + halfW &&
-        z + pRadius > b.z - halfD &&
-        z - pRadius < b.z + halfD
-      ) {
-        return true; 
-      }
+        x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
+        z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
+      ) return true; 
     }
     return false;
   }
@@ -41,35 +33,24 @@ export class LocalPlayer extends Player {
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    if (!this.checkCollision(newX, this.position.z)) {
-      this.position.x = newX;
-    }
-    if (!this.checkCollision(this.position.x, newZ)) {
-      this.position.z = newZ;
-    }
+    if (!this.checkCollision(newX, this.position.z)) this.position.x = newX;
+    if (!this.checkCollision(this.position.x, newZ)) this.position.z = newZ;
   }
 
   jump() {
-    // Tidak bisa lompat jika sedang jongkok
     if (this.isGrounded && !this.isCrouching) {
       this.velocityY = this.jumpForce;
       this.isGrounded = false;
     }
   }
 
-  setCrouching(crouch) {
-    this.isCrouching = crouch;
-  }
-
   update(dt) {
-    // Panggil animasi dasar (berjalan, kedip)
     super.update(dt);
 
-    // --- 1. Fisika Lompat & Gravitasi ---
+    // Gravitasi
     if (!this.isGrounded) {
       this.velocityY -= this.gravity * dt;
       this.position.y += this.velocityY * dt;
-
       if (this.position.y <= 0) {
         this.position.y = 0;
         this.velocityY = 0;
@@ -77,16 +58,10 @@ export class LocalPlayer extends Player {
       }
     }
 
-    // --- 2. Efek Visual Jongkok (Skala Y) ---
+    // Efek Visual Jongkok (Skala Y)
     const targetScale = this.isCrouching ? 0.6 : 1.0;
-    // Animasi halus (smooth) saat jongkok/berdiri
-    this.currentHeightScale = THREE.MathUtils.lerp(this.currentHeightScale, targetScale, 15 * dt);
-    
-    // Terapkan skala ke mesh. 
-    // Karena posisi mesh berada di kaki (Y=0), kita bisa langsung mengubah scale.y
-    this.mesh.scale.y = this.currentHeightScale;
+    this.mesh.scale.y = THREE.MathUtils.lerp(this.mesh.scale.y, targetScale, 15 * dt);
 
-    // Update posisi mesh
     this.mesh.position.copy(this.position);
   }
 }
