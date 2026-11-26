@@ -18,36 +18,39 @@ export class Game {
   }
 
   init() {
-    // --- Rendering ---
+    // 1. Rendering
     const renderer = new Renderer('game-canvas');
-    const scene = new SceneFactory().createWorldScene();
+    const scene = new SceneFactory().createWorldScene(); // 👈 Pastikan namanya createWorldScene()
 
     this.services.register('events', this.events);
     this.services.register('renderer', renderer);
     this.services.register('scene', scene);
 
-    // --- Input ---
+    // 2. Input
     const input = new InputManager();
     this.services.register('input', input);
 
-    // --- Player ---
+    // 3. Player
     const playerManager = new PlayerManager(scene);
     const localPlayer = new LocalPlayer('local-1');
+    
+    // Posisikan pemain di titik spawn
     localPlayer.setPosition(GameConfig.player.spawnX, GameConfig.player.spawnZ);
+    
     playerManager.addLocalPlayer(localPlayer);
     this.services.register('playerManager', playerManager);
     this.services.register('localPlayer', localPlayer);
 
-    // --- Controllers ---
+    // 4. Controllers
     const playerCtrl = new PlayerController(localPlayer, input);
-    const cameraCtrl = new CameraController(renderer.getCamera(), localPlayer,input);
+    const cameraCtrl = new CameraController(renderer.getCamera(), localPlayer, input);
     this.services.register('playerCtrl', playerCtrl);
     this.services.register('cameraCtrl', cameraCtrl);
 
-    // Posisikan kamera langsung di belakang pemain saat start (hindari animasi awal)
+    // Posisikan kamera langsung di belakang pemain saat start
     cameraCtrl.update(1);
 
-    // --- Update loop ---
+    // 5. Update Loop
     this.loop.onUpdate((dt) => {
       playerCtrl.update(dt);
       playerManager.update(dt);
