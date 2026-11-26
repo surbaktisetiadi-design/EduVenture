@@ -27,7 +27,6 @@ export class Player {
   }
 
   #buildTeacherMesh() {
-    // Material
     const matSkin = new THREE.MeshStandardMaterial({ color: 0xffcda8, roughness: 0.6 });
     const matHair = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
     const matShirt = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
@@ -39,7 +38,6 @@ export class Player {
     const matGold = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 0.6, roughness: 0.3 });
     const matEye = new THREE.MeshStandardMaterial({ color: 0x000000 });
 
-    // Fungsi bantuan
     const makeBox = (w, h, d, material, x, y, z) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
       mesh.position.set(x, y, z);
@@ -48,9 +46,7 @@ export class Player {
       return mesh;
     };
 
-    // ==========================================
-    // BAGIAN STATIS (Badan, Kepala, Pinggang)
-    // ==========================================
+    // BAGIAN STATIS
     this.mesh.add(makeBox(0.9, 1.1, 0.45, matShirt, 0, 1.35, 0)); 
     this.mesh.add(makeBox(0.92, 0.15, 0.48, matBelt, 0, 0.85, 0)); 
     this.mesh.add(makeBox(0.2, 0.12, 0.02, matSilver, 0, 0.85, 0.24)); 
@@ -60,24 +56,20 @@ export class Player {
     this.mesh.add(makeBox(0.1, 0.1, 0.02, matGold, 0.25, 1.65, 0.23)); 
     this.mesh.add(makeBox(0.15, 0.15, 0.02, matShirt, 0.25, 1.4, 0.23)); 
 
-    // Kepala & Rambut
+    // KEPALA & RAMBUT
     this.mesh.add(makeBox(0.75, 0.75, 0.7, matSkin, 0, 2.2, 0));
     this.mesh.add(makeBox(0.78, 0.2, 0.72, matHair, 0, 2.55, 0)); 
     this.mesh.add(makeBox(0.78, 0.4, 0.15, matHair, 0, 2.3, -0.3)); 
     this.mesh.add(makeBox(0.25, 0.05, 0.02, matHair, 0, 2.05, 0.35)); 
     this.mesh.add(makeBox(0.1, 0.1, 0.1, matSkin, 0, 2.15, 0.35)); 
 
-    // Mata
+    // MATA
     const eyeL = makeBox(0.1, 0.15, 0.02, matEye, -0.18, 2.25, 0.35);
     const eyeR = makeBox(0.1, 0.15, 0.02, matEye, 0.18, 2.25, 0.35);
     this.mesh.add(eyeL);
     this.mesh.add(eyeR);
     this.eyes.push(eyeL, eyeR);
 
-    // ==========================================
-    // BAGIAN ANIMASI (Kaki & Tangan)
-    // ==========================================
-    
     // KAKI KIRI
     this.leftLeg = new THREE.Group();
     this.leftLeg.position.set(-0.2, 0.85, 0); 
@@ -113,14 +105,12 @@ export class Player {
   }
 
   update(dt) {
-    // Deteksi apakah karakter sedang bergerak
     const isMoving = (Math.abs(this.position.x - (this.lastX || 0)) > 0.001) || 
                      (Math.abs(this.position.z - (this.lastZ || 0)) > 0.001);
                      
     this.lastX = this.position.x;
     this.lastZ = this.position.z;
 
-    // --- 1. Animasi Berjalan / Lari / Jongkok ---
     if (isMoving) {
       const animSpeed = this.isCrouching ? 6 : (this.isRunning ? 16 : 10); 
       const animWidth = this.isCrouching ? 0.2 : (this.isRunning ? 0.8 : 0.5);
@@ -133,7 +123,6 @@ export class Player {
       this.leftArm.rotation.x = -swing;
       this.rightArm.rotation.x = swing;
     } else {
-      // Kembali ke posisi diam
       this.walkTime = 0;
       const returnSpeed = 10 * dt;
       this.leftLeg.rotation.x = THREE.MathUtils.lerp(this.leftLeg.rotation.x, 0, returnSpeed);
@@ -142,19 +131,15 @@ export class Player {
       this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, 0, returnSpeed);
     }
 
-    // --- 2. Efek Jongkok (Badan Mengecil) ---
     const targetScale = this.isCrouching ? 0.6 : 1.0;
     this.mesh.scale.y = THREE.MathUtils.lerp(this.mesh.scale.y, targetScale, 15 * dt);
 
-    // --- 3. Animasi Kedipan Mata ---
     this.blinkTimer += dt;
     if (this.blinkTimer > this.nextBlink) {
       this.eyes.forEach(eye => eye.scale.y = 0.1);
-      
       setTimeout(() => {
         this.eyes.forEach(eye => eye.scale.y = 1);
       }, 100);
-
       this.blinkTimer = 0;
       this.nextBlink = Math.random() * 3 + 2;
     }
