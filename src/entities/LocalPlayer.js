@@ -8,19 +8,20 @@ export class LocalPlayer extends Player {
     
     this.velocity = new THREE.Vector3();
     this.velocityY = 0;
-    this.isGrounded = true; // 👈 Status menyentuh tanah
+    this.isGrounded = true;
     this.jumpForce = 12;
     this.gravity = 30;
   }
 
   checkCollision(x, z) {
     const pRadius = GameConfig.player.radius;
-    
-    // Cek tabrakan dengan semua gedung
+
+    // 1. Cek Tabrakan dengan Gedung / Rumah
     for (const b of GameConfig.buildings) {
       const halfW = b.width / 2;
       const halfD = b.depth / 2;
       
+      // Gunakan hitbox kotak (bounding box)
       if (
         x + pRadius > b.x - halfW &&
         x - pRadius < b.x + halfW &&
@@ -30,6 +31,26 @@ export class LocalPlayer extends Player {
         return true; 
       }
     }
+
+    // 2. Cek Tabrakan dengan Pohon (Bentuk Lingkaran)
+    for (const t of GameConfig.trees) {
+      const treeRadius = 0.6 * t.scale; 
+      const distToTree = Math.hypot(x - t.x, z - t.z);
+      
+      if (distToTree < pRadius + treeRadius) {
+        return true;
+      }
+    }
+
+    // 3. Cek Tabrakan dengan Air Mancur (Bentuk Lingkaran)
+    const f = GameConfig.fountain;
+    const fountainRadius = 4.0; // Radius kolam air mancur
+    const distToFountain = Math.hypot(x - f.x, z - f.z);
+    
+    if (distToFountain < pRadius + fountainRadius) {
+      return true;
+    }
+
     return false;
   }
 
@@ -42,7 +63,7 @@ export class LocalPlayer extends Player {
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    // Terapkan gerakan jika tidak menabrak gedung
+    // Terapkan gerakan jika tidak menabrak gedung (dinding)
     if (!this.checkCollision(newX, this.position.z)) {
       this.position.x = newX;
     }
@@ -52,32 +73,26 @@ export class LocalPlayer extends Player {
   }
 
   jump() {
-    // Hanya bisa lompat jika sedang di tanah dan tidak sedang jongkok
     if (this.isGrounded && !this.isCrouching) {
       this.velocityY = this.jumpForce;
-      this.isGrounded = false; // 👈 Lepas dari tanah
+      this.isGrounded = false; 
     }
   }
 
   update(dt) {
-    // Panggil animasi dasar (berjalan, lari, jongkok, kedip) dari Player.js
-    // Di dalam Player.js, animasi kaki akan berhenti jika isGrounded = false
     super.update(dt);
 
-    // --- Fisika Gravitasi & Lompat ---
     if (!this.isGrounded) {
       this.velocityY -= this.gravity * dt;
       this.position.y += this.velocityY * dt;
 
-      // Cek jika sudah menyentuh tanah (Y <= 0)
       if (this.position.y <= 0) {
         this.position.y = 0;
         this.velocityY = 0;
-        this.isGrounded = true; // 👈 Kembali menyentuh tanah
+        this.isGrounded = true; 
       }
     }
 
-    // Update posisi visual mesh
     this.mesh.position.copy(this.position);
   }
 }
