@@ -77,7 +77,7 @@ export class SceneFactory {
         house.rotation.y = Math.PI; 
         
         // Posisi Y sedikit diturunkan agar fondasi menyentuh tanah
-        house.position.y = -0.22; 
+        house.position.y = -0.05; 
         
         buildingGroup.add(house);
       } else {
