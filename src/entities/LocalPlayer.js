@@ -11,94 +11,59 @@ export class LocalPlayer extends Player {
     this.isGrounded = true;
     this.jumpForce = 12;
     this.gravity = 30;
+    this.walkableFloors = []; // Array untuk menyimpan lantai
+  }
+
+  // Mendeteksi ketinggian lantai di bawah kaki pemain
+  getSupportHeight(x, y, z) {
+    let maxY = 0.0;
+    const r = GameConfig.player.radius * 0.8;
+    const stepTolerance = 0.6; // Toleransi naik tangga
+
+    for (let i = 0; i < this.walkableFloors.length; i++) {
+      const f = this.walkableFloors[i];
+      if (x + r >= f.minX && x - r <= f.maxX && z + r >= f.minZ && z - r <= f.maxZ) {
+        if (f.topY <= y + stepTolerance && f.topY > maxY) {
+          maxY = f.topY;
+        }
+      }
+    }
+    return maxY;
   }
 
   checkCollision(x, z) {
     const pRadius = GameConfig.player.radius;
 
+    // 1. Cek Tabrakan Gedung / Museum
     for (const b of GameConfig.buildings) {
-      // ---------------------------------------------------------
-      // LOGIKA KHUSUS MUSEUM (Mengecek 4 Dinding Terpisah)
-      // ---------------------------------------------------------
-      if (b.type === "museum") {
-        const halfW = b.width / 2;
-        const halfD = b.depth / 2;
-        const wallThick = 1.0; // Ketebalan dinding tabrakan
-
-        // Museum diputar 90 derajat, jadi:
-        // - Sumbu X gedung menjadi Kedalaman (Depan/Belakang)
-        // - Sumbu Z gedung menjadi Lebar (Kiri/Kanan)
-
-        // 1. Dinding Belakang (X negatif)
-        if (
-          x + pRadius > b.x - halfW && x - pRadius < b.x - halfW + wallThick &&
-          z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
-        ) return true;
-
-        // 2. Dinding Kiri (Z negatif)
-        if (
-          x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
-          z + pRadius > b.z - halfD && z - pRadius < b.z - halfD + wallThick
-        ) return true;
-
-        // 3. Dinding Kanan (Z positif)
-        if (
-          x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
-          z + pRadius > b.z + halfD - wallThick && z - pRadius < b.z + halfD
-        ) return true;
-
-        // 4. Dinding Depan (X positif) dengan Celah Pintu di Tengah
-        // Kita bagi menjadi dua bagian: kiri pintu dan kanan pintu
-        const doorWidth = 6; // Lebar pintu
-        const doorHalf = doorWidth / 2;
-        
-        const isFrontWall = (
-          x + pRadius > b.x + halfW - wallThick && x - pRadius < b.x + halfW &&
-          z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
-        );
-
-        if (isFrontWall) {
-          // Jika pemain berada di area pintu (tengah), jangan blokir
-          const isInDoorArea = (z > b.z - doorHalf) && (z < b.z + doorHalf);
-          if (!isInDoorArea) {
-            return true; // Blokir jika menabrak dinding depan selain pintu
-          }
-        }
-
-        continue; // Lanjut ke gedung berikutnya (karena tabrakan museum sudah dicek)
-      }
-
-      // ---------------------------------------------------------
-      // LOGIKA GEDUNG BIASA (Kotak Penuh)
-      // ---------------------------------------------------------
       const halfW = b.width / 2;
       const halfD = b.depth / 2;
-      
+
+      if (b.type === "museum") {
+        // Pintu ada di sisi X positif (setelah diputar 90 derajat)
+        const isInDoorX = (x > b.x + halfW - 2) && (x < b.x + halfW + 2);
+        const isInDoorZ = (z > b.z - 4) && (z < b.z + 4);
+        if (isInDoorX && isInDoorZ) continue; // Biarkan lewat jika di area pintu
+      }
+
       if (
-        x + pRadius > b.x - halfW &&
-        x - pRadius < b.x + halfW &&
-        z + pRadius > b.z - halfD &&
-        z - pRadius < b.z + halfD
+        x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
+        z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
       ) {
         return true; 
       }
     }
 
-    // Cek Tabrakan dengan Pohon
+    // 2. Pohon & Air Mancur
     if (GameConfig.trees) {
       for (const t of GameConfig.trees) {
         const treeRadius = 0.6 * t.scale; 
-        const distToTree = Math.hypot(x - t.x, z - t.z);
-        if (distToTree < pRadius + treeRadius) return true;
+        if (Math.hypot(x - t.x, z - t.z) < pRadius + treeRadius) return true;
       }
     }
-
-    // Cek Tabrakan dengan Air Mancur
     if (GameConfig.fountain) {
       const f = GameConfig.fountain;
-      const fountainRadius = 4.0;
-      const distToFountain = Math.hypot(x - f.x, z - f.z);
-      if (distToFountain < pRadius + fountainRadius) return true;
+      if (Math.hypot(x - f.x, z - f.z) < pRadius + 4.0) return true;
     }
 
     return false;
@@ -112,13 +77,8 @@ export class LocalPlayer extends Player {
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    // Cek tabrakan per sumbu (agar bisa meluncur di dinding)
-    if (!this.checkCollision(newX, this.position.z)) {
-      this.position.x = newX;
-    }
-    if (!this.checkCollision(this.position.x, newZ)) {
-      this.position.z = newZ;
-    }
+    if (!this.checkCollision(newX, this.position.z)) this.position.x = newX;
+    if (!this.checkCollision(this.position.x, newZ)) this.position.z = newZ;
   }
 
   jump() {
@@ -131,14 +91,27 @@ export class LocalPlayer extends Player {
   update(dt) {
     super.update(dt);
 
+    const supportY = this.getSupportHeight(this.position.x, this.position.y, this.position.z);
+
+    // Fisika Vertikal (Lompat & Mendarat)
     if (!this.isGrounded) {
       this.velocityY -= this.gravity * dt;
       this.position.y += this.velocityY * dt;
 
-      if (this.position.y <= 0) {
-        this.position.y = 0;
+      if (this.position.y <= supportY) {
+        this.position.y = supportY;
         this.velocityY = 0;
         this.isGrounded = true; 
+      }
+    } else {
+      // Jika berjalan di tangga (naik)
+      if (supportY > this.position.y) {
+        this.position.y = THREE.MathUtils.lerp(this.position.y, supportY, 15 * dt);
+      } else if (supportY < this.position.y - 0.1) {
+        // Jatuh dari ketinggian
+        this.isGrounded = false;
+      } else {
+        this.position.y = supportY;
       }
     }
 
