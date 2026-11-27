@@ -16,12 +16,26 @@ export class LocalPlayer extends Player {
   checkCollision(x, z) {
     const pRadius = GameConfig.player.radius;
 
-    // 1. Cek Tabrakan dengan Gedung / Rumah
+    // 1. Cek Tabrakan dengan Gedung / Rumah / Museum
     for (const b of GameConfig.buildings) {
       const halfW = b.width / 2;
       const halfD = b.depth / 2;
       
-      // Gunakan hitbox kotak (bounding box)
+      // LOGIKA KHUSUS MUSEUM (Pintu di sisi Kanan/Timur karena diputar 90 derajat)
+      if (b.type === "museum") {
+        // Cek apakah pemain berada di zona pintu masuk
+        // X: sedikit keluar dari dinding kanan gedung
+        // Z: berada di tengah-tengah lebar pintu
+        const isInDoorX = (x > b.x + halfW - 1.5) && (x < b.x + halfW + 1.5);
+        const isInDoorZ = (z > b.z - 3) && (z < b.z + 3);
+
+        if (isInDoorX && isInDoorZ) {
+          // Jika di area pintu, lewati pengecekan tabrakan gedung ini
+          continue; 
+        }
+      }
+
+      // Pengecekan tabrakan kotak biasa (Bounding Box)
       if (
         x + pRadius > b.x - halfW &&
         x - pRadius < b.x + halfW &&
@@ -32,24 +46,18 @@ export class LocalPlayer extends Player {
       }
     }
 
-    // 2. Cek Tabrakan dengan Pohon (Bentuk Lingkaran)
+    // 2. Cek Tabrakan dengan Pohon
     for (const t of GameConfig.trees) {
       const treeRadius = 0.6 * t.scale; 
       const distToTree = Math.hypot(x - t.x, z - t.z);
-      
-      if (distToTree < pRadius + treeRadius) {
-        return true;
-      }
+      if (distToTree < pRadius + treeRadius) return true;
     }
 
-    // 3. Cek Tabrakan dengan Air Mancur (Bentuk Lingkaran)
+    // 3. Cek Tabrakan dengan Air Mancur
     const f = GameConfig.fountain;
-    const fountainRadius = 4.0; // Radius kolam air mancur
+    const fountainRadius = 4.0;
     const distToFountain = Math.hypot(x - f.x, z - f.z);
-    
-    if (distToFountain < pRadius + fountainRadius) {
-      return true;
-    }
+    if (distToFountain < pRadius + fountainRadius) return true;
 
     return false;
   }
@@ -59,11 +67,9 @@ export class LocalPlayer extends Player {
     let newX = this.position.x + dx * speed * dt;
     let newZ = this.position.z + dz * speed * dt;
 
-    // Batasi gerakan di dalam peta
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    // Terapkan gerakan jika tidak menabrak gedung (dinding)
     if (!this.checkCollision(newX, this.position.z)) {
       this.position.x = newX;
     }
