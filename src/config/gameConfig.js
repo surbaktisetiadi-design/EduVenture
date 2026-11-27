@@ -34,11 +34,12 @@ export const GameConfig = {
       name: "Gedung Sains",      
       type: "box", x: 40, z: 0,  width: 16, depth: 18, height: 9,  color: 0xe0f4f1, roofColor: 0x3d5a80 
     },
-    { 
+        { 
       name: "Museum EduVenture",     
       type: "museum", 
       x: -40, z: 0, 
-      width: 24, depth: 30, height: 12 
+      width: 24, depth: 30, height: 12,
+      doorOffset: 15 // 👈 Jarak dari tengah gedung ke pintu depan (setengah dari depth)
     },
     { 
       name: "Gedung Sejarah",    
