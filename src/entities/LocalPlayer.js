@@ -31,20 +31,89 @@ export class LocalPlayer extends Player {
     return maxY;
   }
 
-  checkCollision(x, z) {
+   checkCollision(x, z) {
     const pRadius = GameConfig.player.radius;
 
-    // 1. Cek Tabrakan Gedung / Museum
     for (const b of GameConfig.buildings) {
+      // ---------------------------------------------------------
+      // LOGIKA KHUSUS MUSEUM (Mengecek Dinding Secara Terpisah)
+      // ---------------------------------------------------------
+      if (b.type === "museum") {
+        const halfW = b.width / 2;
+        const halfD = b.depth / 2;
+        const wallThick = 1.5; // Ketebalan tabrakan tembok
+
+        // Catatan: Museum diputar 90 derajat, jadi:
+        // - Sumbu X gedung kita menjadi Kedalaman (Depan/Belakang)
+        // - Sumbu Z gedung kita menjadi Lebar (Kiri/Kanan)
+
+        // 1. Tembok Belakang (X negatif dari pusat museum)
+        if (
+          x + pRadius > b.x - halfW && x - pRadius < b.x - halfW + wallThick &&
+          z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
+        ) return true;
+
+        // 2. Tembok Kiri (Z negatif dari pusat museum)
+        if (
+          x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
+          z + pRadius > b.z - halfD && z - pRadius < b.z - halfD + wallThick
+        ) return true;
+
+        // 3. Tembok Kanan (Z positif dari pusat museum)
+        if (
+          x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
+          z + pRadius > b.z + halfD - wallThick && z - pRadius < b.z + halfD
+        ) return true;
+
+        // 4. Tembok Depan (X positif) dengan Celah Pintu di Tengah
+        // Pintu kita letakkan di tengah, dengan lebar 6 unit.
+        const doorHalf = 3.5; // Setengah dari lebar pintu (7 unit total)
+        
+        // Pengecekan Tembok Depan
+        if (
+          x + pRadius > b.x + halfW - wallThick && x - pRadius < b.x + halfW &&
+          z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
+        ) {
+          // Jika pemain berada di area pintu (tengah), izinkan masuk
+          const isInDoorArea = (z > b.z - doorHalf) && (z < b.z + doorHalf);
+          if (!isInDoorArea) return true; 
+        }
+
+        continue; // Lanjut ke gedung berikutnya
+      }
+
+      // ---------------------------------------------------------
+      // LOGIKA GEDUNG BIASA (Kotak Penuh)
+      // ---------------------------------------------------------
       const halfW = b.width / 2;
       const halfD = b.depth / 2;
-
-      if (b.type === "museum") {
-        // Pintu ada di sisi X positif (setelah diputar 90 derajat)
-        const isInDoorX = (x > b.x + halfW - 2) && (x < b.x + halfW + 2);
-        const isInDoorZ = (z > b.z - 4) && (z < b.z + 4);
-        if (isInDoorX && isInDoorZ) continue; // Biarkan lewat jika di area pintu
+      
+      if (
+        x + pRadius > b.x - halfW &&
+        x - pRadius < b.x + halfW &&
+        z + pRadius > b.z - halfD &&
+        z - pRadius < b.z + halfD
+      ) {
+        return true; 
       }
+    }
+
+    // Cek Tabrakan dengan Pohon
+    if (GameConfig.trees) {
+      for (const t of GameConfig.trees) {
+        const treeRadius = 0.6 * t.scale; 
+        if (Math.hypot(x - t.x, z - t.z) < pRadius + treeRadius) return true;
+      }
+    }
+
+    // Cek Tabrakan dengan Air Mancur
+    if (GameConfig.fountain) {
+      const f = GameConfig.fountain;
+      if (Math.hypot(x - f.x, z - f.z) < pRadius + 4.0) return true;
+    }
+
+    return false;
+  }
 
       if (
         x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
