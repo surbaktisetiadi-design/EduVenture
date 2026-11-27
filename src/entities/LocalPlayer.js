@@ -11,10 +11,12 @@ export class LocalPlayer extends Player {
     this.isGrounded = true;
     this.jumpForce = 12;
     this.gravity = 30;
-    this.walkableFloors = []; // Array untuk menyimpan lantai
+    
+    // Array untuk menyimpan data lantai & tangga (dari Museum)
+    this.walkableFloors = []; 
   }
 
-  // Mendeteksi ketinggian lantai di bawah kaki pemain
+  // Mendeteksi ketinggian lantai di bawah kaki pemain (untuk tangga)
   getSupportHeight(x, y, z) {
     let maxY = 0.0;
     const r = GameConfig.player.radius * 0.8;
@@ -22,7 +24,9 @@ export class LocalPlayer extends Player {
 
     for (let i = 0; i < this.walkableFloors.length; i++) {
       const f = this.walkableFloors[i];
+      // Cek apakah pemain berada di area X/Z lantai ini
       if (x + r >= f.minX && x - r <= f.maxX && z + r >= f.minZ && z - r <= f.maxZ) {
+        // Jika ketinggian lantai di bawah/sedikit di atas kaki pemain
         if (f.topY <= y + stepTolerance && f.topY > maxY) {
           maxY = f.topY;
         }
@@ -31,7 +35,8 @@ export class LocalPlayer extends Player {
     return maxY;
   }
 
-   checkCollision(x, z) {
+  // Sistem Tabrakan Presisi (Khusus Museum Dipisah 4 Dinding)
+  checkCollision(x, z) {
     const pRadius = GameConfig.player.radius;
 
     for (const b of GameConfig.buildings) {
@@ -43,9 +48,9 @@ export class LocalPlayer extends Player {
         const halfD = b.depth / 2;
         const wallThick = 1.5; // Ketebalan tabrakan tembok
 
-        // Catatan: Museum diputar 90 derajat, jadi:
-        // - Sumbu X gedung kita menjadi Kedalaman (Depan/Belakang)
-        // - Sumbu Z gedung kita menjadi Lebar (Kiri/Kanan)
+        // Museum diputar 90 derajat:
+        // - Sumbu X gedung menjadi Kedalaman (Depan/Belakang)
+        // - Sumbu Z gedung menjadi Lebar (Kiri/Kanan)
 
         // 1. Tembok Belakang (X negatif dari pusat museum)
         if (
@@ -66,20 +71,18 @@ export class LocalPlayer extends Player {
         ) return true;
 
         // 4. Tembok Depan (X positif) dengan Celah Pintu di Tengah
-        // Pintu kita letakkan di tengah, dengan lebar 6 unit.
-        const doorHalf = 3.5; // Setengah dari lebar pintu (7 unit total)
+        const doorHalf = 3.5; // Setengah lebar pintu
         
-        // Pengecekan Tembok Depan
         if (
           x + pRadius > b.x + halfW - wallThick && x - pRadius < b.x + halfW &&
           z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
         ) {
-          // Jika pemain berada di area pintu (tengah), izinkan masuk
+          // Jika di area pintu, jangan blokir
           const isInDoorArea = (z > b.z - doorHalf) && (z < b.z + doorHalf);
           if (!isInDoorArea) return true; 
         }
 
-        continue; // Lanjut ke gedung berikutnya
+        continue; // Lanjut ke pengecekan gedung berikutnya
       }
 
       // ---------------------------------------------------------
@@ -115,29 +118,6 @@ export class LocalPlayer extends Player {
     return false;
   }
 
-      if (
-        x + pRadius > b.x - halfW && x - pRadius < b.x + halfW &&
-        z + pRadius > b.z - halfD && z - pRadius < b.z + halfD
-      ) {
-        return true; 
-      }
-    }
-
-    // 2. Pohon & Air Mancur
-    if (GameConfig.trees) {
-      for (const t of GameConfig.trees) {
-        const treeRadius = 0.6 * t.scale; 
-        if (Math.hypot(x - t.x, z - t.z) < pRadius + treeRadius) return true;
-      }
-    }
-    if (GameConfig.fountain) {
-      const f = GameConfig.fountain;
-      if (Math.hypot(x - f.x, z - f.z) < pRadius + 4.0) return true;
-    }
-
-    return false;
-  }
-
   moveBy(dx, dz, dt, speed) {
     const boundary = GameConfig.world.boundary;
     let newX = this.position.x + dx * speed * dt;
@@ -146,8 +126,13 @@ export class LocalPlayer extends Player {
     newX = Math.max(-boundary, Math.min(boundary, newX));
     newZ = Math.max(-boundary, Math.min(boundary, newZ));
 
-    if (!this.checkCollision(newX, this.position.z)) this.position.x = newX;
-    if (!this.checkCollision(this.position.x, newZ)) this.position.z = newZ;
+    // Cek tabrakan per sumbu (agar bisa meluncur di dinding)
+    if (!this.checkCollision(newX, this.position.z)) {
+      this.position.x = newX;
+    }
+    if (!this.checkCollision(this.position.x, newZ)) {
+      this.position.z = newZ;
+    }
   }
 
   jump() {
@@ -160,26 +145,35 @@ export class LocalPlayer extends Player {
   update(dt) {
     super.update(dt);
 
+    // 1. Dapatkan ketinggian lantai/tangga di bawah pemain
     const supportY = this.getSupportHeight(this.position.x, this.position.y, this.position.z);
 
-    // Fisika Vertikal (Lompat & Mendarat)
+    // 2. Logika Fisika Vertikal
     if (!this.isGrounded) {
+      // Jika sedang melompat/jatuh
       this.velocityY -= this.gravity * dt;
       this.position.y += this.velocityY * dt;
 
+      // Mendarat di tanah/lantai
       if (this.position.y <= supportY) {
         this.position.y = supportY;
         this.velocityY = 0;
         this.isGrounded = true; 
       }
     } else {
-      // Jika berjalan di tangga (naik)
+      // Jika sedang berjalan di tanah
       if (supportY > this.position.y) {
+        // Naik tangga secara halus
         this.position.y = THREE.MathUtils.lerp(this.position.y, supportY, 15 * dt);
-      } else if (supportY < this.position.y - 0.1) {
-        // Jatuh dari ketinggian
+        if (Math.abs(supportY - this.position.y) < 0.05) {
+          this.position.y = supportY;
+        }
+      } 
+      else if (supportY < this.position.y - 0.2) {
+        // Berjalan keluar dari lantai tinggi (jatuh)
         this.isGrounded = false;
-      } else {
+      } 
+      else {
         this.position.y = supportY;
       }
     }
